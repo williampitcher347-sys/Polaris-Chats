@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="en" class="dark h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Polaris Chat</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        polaris: {
+                            bg: '#040814',
+                            sidebar: '#070e20',
+                            card: '#0b1329',
+                            border: '#17254d',
+                            accent: '#2563eb',
+                            accentHover: '#1d4ed8',
+                            cyan: '#38bdf8',
+                            rose: '#f43f5e',
+                            muted: '#64748b'
+                        }
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'equalizer': 'equalizer 1s ease-in-out infinite alternate',
+                        'fade-in': 'fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+                    },
+                    keyframes: {
+                        equalizer: {
+                            '0%': { height: '20%' },
+                            '100%': { height: '100%' }
+                        },
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'scale(0.98)' },
+                            '100%': { opacity: '1', transform: 'scale(1)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #040814; color: #f8fafc; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: #070e20; }
+        ::-webkit-scrollbar-thumb { background: #17254d; border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: #2563eb; }
+        .glass-panel { background: rgba(11, 19, 41, 0.75); backdrop-filter: blur(12px); border: 1px solid rgba(23, 37, 77, 0.6); }
+        .glass-card { background: rgba(7, 14, 32, 0.6); backdrop-filter: blur(8px); border: 1px solid rgba(23, 37, 77, 0.5); }
+    </style>
+</head>
+<body class="h-full overflow-hidden text-slate-100 flex flex-col antialiased select-none">
+
+    <!-- ================= 1. SHOOTING STAR BOOT SCREEN ================= -->
+    <div id="boot-screen" class="fixed inset-0 z-50 bg-[#040814] flex flex-col items-center justify-center transition-opacity duration-700">
+        <canvas id="starfield-canvas" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+        
+        <div class="z-10 flex flex-col items-center space-y-4">
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-polaris-accent to-polaris-cyan flex items-center justify-center text-white shadow-2xl shadow-polaris-accent/50 animate-pulse-slow">
+                <i data-lucide="shield-check" class="w-10 h-10"></i>
+            </div>
+            <div class="text-center">
+                <h1 class="text-2xl font-bold tracking-widest text-white uppercase font-mono">Polaris Engine</h1>
+                <p id="boot-status" class="text-xs text-polaris-cyan font-mono mt-1 animate-pulse">Initializing encryption core...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= GLOBAL SYSTEM BROADCAST BANNER ================= -->
+    <div id="global-broadcast" class="hidden bg-gradient-to-r from-blue-700 via-polaris-accent to-indigo-700 text-white px-4 py-2 text-xs font-semibold flex justify-between items-center z-40 shadow-lg">
+        <div class="flex items-center space-x-2">
+            <i data-lucide="radio" class="w-4 h-4 animate-pulse text-polaris-cyan"></i>
+            <span class="font-mono uppercase text-polaris-cyan font-bold">Broadcast:</span>
+            <span id="broadcast-message">Welcome to Polaris Chat. Communication modules are fully encrypted.</span>
+        </div>
+        <button onclick="document.getElementById('global-broadcast').classList.add('hidden')" class="hover:opacity-75">
+            <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+    </div>
+
+    <!-- ================= 2. ACCOUNT AUTHENTICATION SCREEN ================= -->
+    <div id="auth-screen" class="fixed inset-0 z-40 bg-[#040814] flex items-center justify-center p-4">
+        <div class="w-full max-w-md glass-panel rounded-2xl p-8 shadow-2xl relative overflow-hidden animate-fade-in">
+            <div class="absolute -top-20 -right-20 w-44 h-44 bg-polaris-accent/20 rounded-full blur-3xl pointer-events-none"></div>
+            
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-12 h-12 bg-polaris-accent/10 border border-polaris-accent/30 rounded-xl text-polaris-accent mb-3">
+                    <i data-lucide="shield-check" class="w-7 h-7"></i>
+                </div>
+                <h1 class="text-xl font-bold text-white">Polaris Chat</h1>
+                <p class="text-xs text-polaris-muted mt-1">End-to-End Client Encrypted Platform</p>
+            </div>
+
+            <!-- Auth Mode Tabs -->
+            <div class="flex bg-polaris-sidebar p-1 rounded-xl mb-6 border border-polaris-border text-xs font-medium">
+                <button id="tab-login" onclick="switchAuthTab('login')" class="flex-1 py-2 rounded-lg bg-polaris-accent text-white font-semibold transition-all">Sign In</button>
+                <button id="tab-register" onclick="switchAuthTab('register')" class="flex-1 py-2 rounded-lg text-polaris-muted hover:text-white transition-all">Create Identity</button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="form-login" onsubmit="handleAuth(event, 'login')" class="space-y-4">
+                <div>
+                    <label class="block text-[11px] font-mono text-polaris-muted mb-1 uppercase">Username / Handle</label>
+                    <input type="text" id="login-username" required placeholder="@username" class="w-full bg-polaris-sidebar border border-polaris-border rounded-xl p-3 text-xs text-white focus:outline-none focus:border-polaris-accent">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-mono text-polaris-muted mb-1 uppercase">Password</label>
+                    <input type="password" required placeholder="••••••••" class="w-full bg-polaris-sidebar border border-polaris-border rounded-xl p-3 text-xs text-white focus:outline-none focus:border-polaris-accent">
+                </div>
+                <button type="submit" class="w-full bg-polaris-accent hover:bg-polaris-accentHover text-white py-3 rounded-xl text-xs font-semibold shadow-lg shadow-polaris-accent/25 transition">Enter Terminal</button>
+            </form>
+
+            <!-- Registration Form -->
+            <form id="form-register" onsubmit="handleAuth(event, 'register')" class="space-y-3 hidden">
+                <div>
+                    <label class="block text-[11px] font-mono text-polaris-muted mb-1 uppercase">Display Name</label>
+                    <input type="text" id="reg-display" required placeholder="Will" class="w-full bg-polaris-sidebar border border-polaris-border rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-polaris-accent">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-mono text-polaris-muted mb-1 uppercase">Handle (@username)</label>
+                    <input type="text" id="reg-username" required placeholder="will101" class="w-full bg-polaris-sidebar border border-polaris-border rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-polaris-accent">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-mono text-polaris-muted mb-1 uppercase">Avatar Image/GIF URL (Optional)</label>
+                    <input type="url" id="reg-avatar" placeholder="Leave empty for initial letter badge" class="w-full bg-polaris-sidebar border border-polaris-border rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-polaris-accent">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-mono text-polaris-muted mb-1 uppercase">Animated Banner URL (Optional)</label>
+                    <input type="url" id="reg-banner" placeholder="https://media.giphy.com/..." class="w-full bg-polaris-sidebar border border-polaris-border rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-polaris-accent">
+                </div>
+                <button type="submit" class="w-full bg-polaris-accent hover:bg-polaris-accentHover text-white py-3 rounded-xl text-xs font-semibold shadow-lg transition">Create Polaris Identity</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= 3. MAIN DASHBOARD INTERFACE ================= -->
+    <div id="main-dashboard" class="flex-1 flex overflow-hidden opacity-0 transition-opacity duration-500">
+        
+        <!-- BAR 1: Server Navigation -->
+        <div class="w-16 bg-[#040814] border-r border-polaris-border flex flex-col items-center py-4 space-y-4 shrink-0">
+            <div class="w-10 h-10 bg-polaris-accent rounded-2xl flex items-center justify-center text-white shadow-lg shadow-polaris-accent/40">
+                <i data-lucide="shield-check" class="w-6 h-6"></i>
+            </div>
+            
+            <div class="w-8 h-[1px] bg-polaris-border"></div>
+
+            <button id="nav-dm" onclick="switchContext('dm')" class="w-10 h-10 rounded-2xl bg-polaris-accent text-white flex items-center justify-center hover:rounded-xl transition-all relative group shadow-md">
+                <i data-lucide="message-square" class="w-5 h-5"></i>
+                <span class="absolute left-16 bg-polaris-card border border-polaris-border text-white text-xs px-2.5 py-1 rounded-md shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30 font-medium">Direct Messages</span>
+            </button>
+
+            <!-- Dynamic Server List -->
+            <div id="server-list" class="flex-1 w-full flex flex-col items-center space-y-3 overflow-y-auto"></div>
+
+            <button onclick="openModal('modal-create-server')" class="w-10 h-10 rounded-2xl border border-dashed border-polaris-border text-polaris-muted hover:border-polaris-accent hover:text-white flex items-center justify-center transition">
+                <i data-lucide="plus" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <!-- BAR 2: Channel & DM Sidebar -->
+        <div class="w-64 bg-polaris-sidebar border-r border-polaris-border flex flex-col shrink-0">
+            <div class="h-14 border-b border-polaris-border flex items-center justify-between px-4">
+                <span id="sidebar-title" class="font-bold text-xs uppercase tracking-wider text-white flex items-center gap-2 font-mono">
+                    <i data-lucide="users" class="w-4 h-4 text-polaris-accent"></i> Direct Messages
+                </span>
+                <button id="sidebar-action-btn" onclick="openNewDMDialog()" class="text-polaris-muted hover:text-white transition">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Channels / DMs Stream -->
+            <div id="channel-or-dm-list" class="flex-1 overflow-y-auto p-3 space-y-1"></div>
+
+            <!-- Current User Drawer & Settings Trigger -->
+            <div class="h-16 border-t border-polaris-border bg-polaris-card/50 px-3 flex items-center justify-between">
+                <div class="flex items-center space-x-2.5 overflow-hidden cursor-pointer" onclick="openModal('modal-settings')">
+                    <div id="user-avatar-container" class="shrink-0"></div>
+                    <div class="truncate">
+                        <div id="user-display-name" class="text-xs font-bold text-white truncate">User</div>
+                        <div id="user-handle" class="text-[10px] text-polaris-muted font-mono truncate">@user</div>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-1">
+                    <button onclick="openModal('modal-settings')" title="Account Settings" class="text-polaris-muted hover:text-white transition p-1.5 rounded-lg hover:bg-polaris-card">
+                        <i data-lucide="settings" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="openModal('modal-admin-passcode')" title="Admin Access" class="text-polaris-muted hover:text-polaris-rose transition p-1.5 rounded-lg hover:bg-polaris-card">
+                        <i data-lucide="shield-alert" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- BAR 3: Active Chat Viewport -->
+        <div class="flex-1 bg-polaris-bg flex flex-col overflow-hidden">
+            <!-- Header Bar -->
+            <div class="h-14 border-b border-polaris-border flex items-center justify-between px-6 bg-polaris-sidebar/50">
+                <div class="flex items-center space-x-3">
+                    <span id="chat-type-icon" class="text-polaris-accent">
+                        <i data-lucide="message-square" class="w-5 h-5"></i>
+                    </span>
+                    <div>
+                        <h2 id="chat-title" class="text-sm font-bold text-white">#general</h2>
+                        <p id="chat-subtitle" class="text-[10px] text-polaris-muted font-mono">Client-side AES-256 Encrypted Session</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-polaris-accent/10 border border-polaris-accent/30 text-polaris-cyan text-[11px] font-mono rounded-full font-medium">
+                        <span class="w-2 h-2 rounded-full bg-polaris-cyan animate-pulse"></span> AES-256 E2EE Verified
+                    </span>
+                </div>
+            </div>
+
+            <!-- Messages Stream -->
+            <div id="chat-messages" class="flex-1 overflow-y-auto p-6 space-y-4"></div>
+
+            <!-- Chat Input Controls & Media Bar -->
+            <div class="p-4 bg-polaris-sidebar/40 border-t border-polaris-border">
+                <!-- Recorded Voice Preview Bar (Hidden by default) -->
+                <div id="voice-preview-bar" class="hidden mb-3 p-3 glass-card rounded-xl flex items-center justify-between border border-polaris-accent/40 animate-fade-in">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 rounded-full bg-polaris-accent flex items-center justify-center text-white">
+                            <i data-lucide="mic" class="w-4 h-4"></i>
+                        </div>
+                        <div class="text-xs">
+                            <div class="font-bold text-white">Voice Note Recorded</div>
+                            <div class="text-[10px] text-polaris-muted font-mono">0:15 • Audio Clip Prepared</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="discardVoiceNote()" class="px-2.5 py-1 text-xs text-polaris-rose hover:underline">Discard</button>
+                        <button onclick="sendVoiceNote()" class="px-3 py-1 bg-polaris-accent text-white text-xs font-semibold rounded-lg shadow">Send Audio</button>
+                    </div>
+                </div>
+
+                <form id="chat-form" onsubmit="handleSendMessage(event)" class="flex items-center bg-polaris-sidebar border border-polaris-border rounded-xl p-2 focus-within:border-polaris-accent transition shadow-inner">
+                    <button type="button" onclick="attachImagePrompt()" class="p-2 text-polaris-muted hover:text-white transition" title="Attach Image URL">
+                        <i data-lucide="image" class="w-4 h-4"></i>
+                    </button>
+                    <button type="button" onclick="simulateVoiceRecord()" class="p-2 text-polaris-muted hover:text-polaris-cyan transition" title="Record Voice Note">
+                        <i data-lucide="mic" class="w-4 h-4"></i>
+                    </button>
+                    <input type="text" id="message-text-input" placeholder="Type an encrypted payload..." class="flex-1 bg-transparent border-none text-xs text-white px-3 focus:outline-none placeholder:text-polaris-muted">
+                    <button type="submit" class="p-2.5 bg-polaris-accent hover:bg-polaris-accentHover text-white rounded-lg transition shadow-md">
+                        <i data-lucide="send" class="w-4 h-4"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= 4. MODALS & POPUPS ================= -->
+
+    <!-- Modal: Settings & Profile Editor -->
+    <div id="modal-settings" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="w-full max-w-md glass-panel rounded-2xl p-6 shadow-2xl space-y-4 animate-fade-in">
+            <div class="flex justify-between items-center border-b border-polaris-border pb-3">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2"><i data-lucide="settings" class="w-4 h-4 text-polaris-accent"></i> Profile & Settings</h3>
+                <button onclick="closeModal('modal-settings')" class="text-polaris-muted hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <form onsubmit="handleSaveSettings(event)" class="space-y-3">
+                <div>
+                    <label class="block text-[11px] font-mono text-polaris-muted mb-1">DISPLAY NAME</label>
+                    <input type="text" id="settings-display" required class="w-full bg-polaris-sidebar border border-polaris-border rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-polaris-accent">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-mono text-polaris-muted mb-1">AVATAR IMAGE/GIF URL</label>
+                    <input type="url" id="settings-avatar" placeholder="Leave blank to use initial letter badge" class="w-full bg-polaris-sidebar border border-polaris-border rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-polaris-accent">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-mono text-polaris-muted mb-1">ANIMATED PROFILE BANNER URL</label>
+                    <input type="url" id="settings-banner" placeholder="https://media.giphy.com/..." class="w-full bg-polaris-sidebar border border-polaris-border rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-polaris-accent">
+                </div>
+                <button type="submit" class="w-full bg-polaris-accent text-white py-2.5 rounded-xl text-xs font-semibold shadow">Save Profile Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Create Server -->
+    <div id="modal-create-server" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="w-full max-w-sm glass-panel rounded-2xl p-6 shadow-2xl space-y-4 animate-fade-in">
+            <div class="flex justify-between items-center">
+                <h3 class="text-sm font-bold text-white">Create New Server</h3>
+                <button onclick="closeModal('modal-create-server')" class="text-polaris-muted hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <form onsubmit="handleCreateServer(event)" class="space-y-3">
+                <div>
+                    <label class="block text-[11px] font-mono text-polaris-muted mb-1">SERVER NAME</label>
+                    <input type="text" id="server-name-input" required placeholder="Development HQ" class="w-full bg-polaris-sidebar border border-polaris-border rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-polaris-accent">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-mono text-polaris-muted mb-1">ICON IMAGE URL (OPTIONAL)</label>
+                    <input type="url" id="server-icon-input" placeholder="https://images.unsplash.com/..." class="w-full bg-polaris-sidebar border border-polaris-border rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-polaris-accent">
+                </div>
+                <button type="submit" class="w-full bg-polaris-accent text-white py-2.5 rounded-xl text-xs font-semibold shadow">Deploy Server</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: User Report -->
+    <div id="modal-report-user" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="w-full max-w-sm glass-panel rounded-2xl p-6 shadow-2xl space-y-4 animate-fade-in">
+            <div class="flex justify-between items-center border-b border-polaris-border pb-2">
+                <h3 class="text-sm font-bold text-polaris-rose flex items-center gap-1.5"><i data-lucide="flag" class="w-4 h-4"></i> File Incident Report</h3>
+                <button onclick="closeModal('modal-report-user')" class="text-polaris-muted hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <form onsubmit="submitReport(event)" class="space-y-3">
+                <input type="hidden" id="report-target-username">
+                <div>
+                    <label class="block text-[11px] font-mono text-polaris-muted mb-1">REPORTED USER</label>
+                    <div id="report-target-display" class="text-xs font-bold text-white bg-polaris-sidebar p-2.5 rounded-xl border border-polaris-border">@target</div>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-mono text-polaris-muted mb-1">VIOLATION CATEGORY</label>
+                    <select id="report-category" class="w-full bg-polaris-sidebar border border-polaris-border rounded-xl p-2.5 text-xs text-white focus:outline-none mb-2">
+                        <option value="Spam / Harassment">Spam / Harassment</option>
+                        <option value="Inappropriate Content">Inappropriate Content</option>
+                        <option value="Security Violation">Security Violation</option>
+                    </select>
+                    <textarea id="report-details" required placeholder="Describe violation details..." class="w-full bg-polaris-sidebar border border-polaris-border rounded-xl p-2 text-xs text-white focus:outline-none h-20 resize-none"></textarea>
+                </div>
+                <button type="submit" class="w-full bg-polaris-rose text-white py-2.5 rounded-xl text-xs font-semibold shadow">Dispatch Report to Audit</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Screen: Banned Screen Overlay -->
+    <div id="banned-screen" class="hidden fixed inset-0 z-50 bg-[#040814] flex items-center justify-center p-6">
+        <div class="w-full max-w-md glass-panel border border-polaris-rose/50 rounded-2xl p-8 shadow-2xl text-center space-y-6">
+            <div class="inline-flex items-center justify-center w-16 h-16 bg-polaris-rose/10 border border-polaris-rose/40 rounded-2xl text-polaris-rose mb-1">
+                <i data-lucide="shield-alert" class="w-10 h-10"></i>
+            </div>
+            <div>
+                <h2 class="text-xl font-bold text-white">Identity Banned</h2>
+                <p class="text-xs text-polaris-muted mt-1">Terminal access revoked by administration.</p>
+            </div>
+            <div class="bg-polaris-sidebar border border-polaris-border rounded-xl p-4 text-left space-y-1">
+                <div class="text-[10px] font-mono text-polaris-rose uppercase font-bold">Mandatory Staff Ban Note:</div>
+                <div id="ban-reason-text" class="text-xs text-white">Violation of network protocol.</div>
+            </div>
+            <form onsubmit="submitAppeal(event)" class="space-y-3 pt-2 text-left">
+                <label class="block text-[11px] font-mono text-polaris-muted uppercase">Submit Ban Appeal</label>
+                <input type="text" id="appeal-username" required placeholder="Confirm your handle (@username)" class="w-full bg-polaris-sidebar border border-polaris-border rounded-xl p-2.5 text-xs text-white focus:outline-none">
+                <textarea id="appeal-reason" required placeholder="Explain why ban should be revoked..." class="w-full bg-polaris-sidebar border border-polaris-border rounded-xl p-2 text-xs text-white focus:outline-none h-20 resize-none"></textarea>
+                <button type="submit" class="w-full bg-polaris-accent text-white py-2.5 rounded-xl text-xs font-semibold shadow">Transmit Appeal</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Secret Admin Passcode Prompt -->
+    <div id="modal-admin-passcode" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="w-full max-w-xs glass-panel border border-polaris-rose/40 rounded-2xl p-6 shadow-2xl space-y-4">
+            <div class="text-center space-y-1">
+                <i data-lucide="lock" class="w-8 h-8 text-polaris-rose mx-auto"></i>
+                <h3 class="text-sm font-bold text-white">Staff Clearance Check</h3>
+                <p class="text-[11px] text-polaris-muted">Enter 4-digit admin passkey.</p>
+            </div>
+            <form onsubmit="verifyAdminPasscode(event)" class="space-y-3">
+                <input type="password" id="admin-code-input" required maxlength="4" placeholder="••••" class="w-full bg-polaris-sidebar border border-polaris-border text-center font-mono text-lg text-white rounded-xl p-2 focus:outline-none focus:border-polaris-rose">
+                <button type="submit" class="w-full bg-polaris-rose text-white py-2.5 rounded-xl text-xs font-semibold shadow">Authenticate</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Expanded Admin Console -->
+    <div id="modal-admin-panel" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-6">
+        <div class="w-full max-w-4xl glass-panel border border-polaris-border rounded-2xl p-6 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-polaris-border pb-3">
+                <div class="flex items-center space-x-2 text-polaris-rose">
+                    <i data-lucide="terminal" class="w-5 h-5"></i>
+                    <h3 class="text-sm font-bold text-white">Polaris Master Administration Console</h3>
+                </div>
+                <button onclick="closeModal('modal-admin-panel')" class="text-polaris-muted hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+
+            <!-- Lockout Toggles -->
+            <div class="p-4 bg-polaris-sidebar border border-polaris-border rounded-xl space-y-3">
+                <span class="text-xs font-mono text-polaris-cyan font-bold uppercase tracking-wider flex items-center gap-1.5"><i data-lucide="shield" class="w-3.5 h-3.5"></i> Secret Shortcut (Ctrl+E x3) Lockout Engine</span>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                    <label class="flex items-center space-x-2 text-white bg-polaris-bg p-2.5 rounded-xl border border-polaris-border cursor-pointer">
+                        <input type="checkbox" id="toggle-disable-shortcut-all" onchange="updateShortcutSettings()" class="rounded border-polaris-border text-polaris-accent">
+                        <span>Disable Shortcut Systemwide (Everyone)</span>
+                    </label>
+                    <label class="flex items-center space-x-2 text-white bg-polaris-bg p-2.5 rounded-xl border border-polaris-border cursor-pointer">
+                        <input type="checkbox" id="toggle-disable-shortcut-nonstaff" onchange="updateShortcutSettings()" class="rounded border-polaris-border text-polaris-accent">
+                        <span>Disable Shortcut for Non-Staff Members</span>
+                    </label>
+                </div>
+                <div class="flex items-center space-x-2 pt-1">
+                    <input type="text" id="blacklist-shortcut-username" placeholder="Blacklist handle from shortcut (@handle)" class="flex-1 bg-polaris-bg border border-polaris-border rounded-xl p-2 text-xs text-white focus:outline-none">
+                    <button onclick="blacklistUserShortcut()" class="px-3 py-2 bg-polaris-rose text-white text-xs font-semibold rounded-xl shrink-0">Blacklist User</button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Ban Engine -->
+                <div class="p-4 bg-polaris-sidebar border border-polaris-border rounded-xl space-y-3">
+                    <span class="text-xs font-mono text-polaris-rose font-bold uppercase">INSTANT BAN ENGINE</span>
+                    <input type="text" id="admin-ban-username" placeholder="Target Handle (@username)" class="w-full bg-polaris-bg border border-polaris-border rounded-xl p-2 text-xs text-white focus:outline-none">
+                    <textarea id="admin-ban-note" placeholder="Mandatory staff ban note..." class="w-full bg-polaris-bg border border-polaris-border rounded-xl p-2 text-xs text-white focus:outline-none h-16 resize-none"></textarea>
+                    <button onclick="executeInstantBan()" class="w-full py-2 bg-polaris-rose text-white text-xs font-semibold rounded-xl shadow">Execute Instant Ban</button>
+                </div>
+
+                <!-- Admin Privileges -->
+                <div class="p-4 bg-polaris-sidebar border border-polaris-border rounded-xl space-y-3">
+                    <span class="text-xs font-mono text-polaris-cyan font-bold uppercase">PRIVILEGE MANAGEMENT</span>
+                    <input type="text" id="admin-role-target" placeholder="Target Handle (@username)" class="w-full bg-polaris-bg border border-polaris-border rounded-xl p-2 text-xs text-white focus:outline-none">
+                    <div class="flex space-x-2">
+                        <button onclick="setUserRole('admin')" class="flex-1 py-2 bg-polaris-accent text-white text-xs font-semibold rounded-xl">Grant Verified Admin</button>
+                        <button onclick="setUserRole('user')" class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-xl">Revoke Admin</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Audit Stream & Appeals -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="p-4 bg-polaris-sidebar border border-polaris-border rounded-xl space-y-2">
+                    <span class="text-xs font-mono text-amber-400 font-bold uppercase">REPORTS QUEUE</span>
+                    <div id="admin-report-list" class="space-y-2 max-h-36 overflow-y-auto text-xs">
+                        <div class="text-polaris-muted italic text-[11px]">No active user reports.</div>
+                    </div>
+                </div>
+
+                <div class="p-4 bg-polaris-sidebar border border-polaris-border rounded-xl space-y-2">
+                    <span class="text-xs font-mono text-indigo-400 font-bold uppercase">APPEALS QUEUE</span>
+                    <div id="admin-appeals-list" class="space-y-2 max-h-36 overflow-y-auto text-xs">
+                        <div class="text-polaris-muted italic text-[11px]">No pending appeals.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Broadcast Injector -->
+            <div class="p-4 bg-polaris-sidebar border border-polaris-border rounded-xl space-y-2">
+                <span class="text-xs font-mono text-polaris-accent font-bold uppercase">SYSTEM BROADCAST INJECTOR</span>
+                <div class="flex space-x-2">
+                    <input type="text" id="admin-broadcast-text" placeholder="Type system broadcast message..." class="flex-1 bg-polaris-bg border border-polaris-border rounded-xl p-2 text-xs text-white focus:outline-none">
+                    <button onclick="sendAdminBroadcast()" class="px-4 py-2 bg-polaris-accent text-white text-xs font-semibold rounded-xl shrink-0">Inject Broadcast</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= 5. APPLICATION LOGIC ================= -->
+    <script>
+        const appState = {
+            currentUser: null,
+            currentContext: 'dm',
+            currentServerId: null,
+            currentChannelId: 'general',
+            ctrlEPressCount: 0,
+            registeredUsers: {},
+            servers: [],
+            dms: [],
+            messages: [],
+            reports: [],
+            appeals: [],
+            shortcutConfig: { disableAll: false, disableNonStaff: false, blacklistedUsers: [] },
+            pendingVoiceNote: false
+        };
+
+        // Initialize App & Starfield Engine
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            initStarfieldCanvas();
+            setupAdminShortcutListener();
+            renderServerList();
+            renderChannelOrDMList();
+        });
+
+        // Shooting Star Starfield Engine
+        function initStarfieldCanvas() {
+            const canvas = document.getElementById('starfield-canvas');
+            const ctx = canvas.getContext('2d');
+            let width = canvas.width = window.innerWidth;
+            let height = canvas.height = window.innerHeight;
+
+            const stars = Array.from({ length: 120 }, () => ({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                radius: Math.random() * 1.5,
+                alpha: Math.random()
+            }));
+
+            let shootingStar = { x: 0, y: 0, length: 0, speed: 0, active: false };
+
+            function triggerShootingStar() {
+                shootingStar = {
+                    x: Math.random() * width * 0.7,
+                    y: Math.random() * height * 0.3,
+                    length: Math.random() * 80 + 100,
+                    speed: Math.random() * 12 + 15,
+                    active: true
+                };
+            }
+
+            setTimeout(triggerShootingStar, 500);
+
+            function draw() {
+                ctx.fillStyle = '#040814';
+                ctx.fillRect(0, 0, width, height);
+
+                // Draw Stars
+                stars.forEach(s => {
+                    ctx.beginPath();
+                    ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`;
+                    ctx.fill();
+                });
+
+                // Draw Shooting Star
+                if (shootingStar.active) {
+                    const grad = ctx.createLinearGradient(shootingStar.x, shootingStar.y, shootingStar.x - shootingStar.length, shootingStar.y + shootingStar.length);
+                    grad.addColorStop(0, '#38bdf8');
+                    grad.addColorStop(1, 'transparent');
+
+                    ctx.strokeStyle = grad;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(shootingStar.x, shootingStar.y);
+                    ctx.lineTo(shootingStar.x - shootingStar.length, shootingStar.y + shootingStar.length);
+                    ctx.stroke();
+
+                    shootingStar.x += shootingStar.speed;
+                    shootingStar.y -= shootingStar.speed * 0.6;
+
+                    if (shootingStar.x > width || shootingStar.y < 0) shootingStar.active = false;
+                }
+
+                requestAnimationFrame(draw);
+            }
+
+            draw();
+
+            // Transition from Boot Screen to Auth Screen
+            setTimeout(() => {
+                const bootScreen = document.getElementById('boot-screen');
+                bootScreen.classList.add('opacity-0', 'pointer-events-none');
+                setTimeout(() => bootScreen.classList.add('hidden'), 700);
+            }, 2500);
+        }
+
+        // Avatar Initial Badge Generator
+        function getAvatarElement(user, sizeClass = "w-9 h-9") {
+            if (user && user.avatar) {
+                return `<img src="${user.avatar}" class="${sizeClass} rounded-full object-cover border border-polaris-border">`;
+            }
+            const initial = user && user.display ? user.display.charAt(0).toUpperCase() : 'U';
+            return `
+                <div class="${sizeClass} rounded-full bg-gradient-to-tr from-polaris-accent to-polaris-cyan flex items-center justify-center text-white font-bold text-xs shadow-md border border-polaris-accent/50 shrink-0">
+                    ${initial}
+                </div>
+            `;
+        }
+
+        // Auth Tab Switcher
+        function switchAuthTab(tab) {
+            document.getElementById('tab-login').className = tab === 'login' ? 'flex-1 py-2 rounded-lg bg-polaris-accent text-white font-semibold transition-all' : 'flex-1 py-2 rounded-lg text-polaris-muted hover:text-white transition-all';
+            document.getElementById('tab-register').className = tab === 'register' ? 'flex-1 py-2 rounded-lg bg-polaris-accent text-white font-semibold transition-all' : 'flex-1 py-2 rounded-lg text-polaris-muted hover:text-white transition-all';
+            document.getElementById('form-login').classList.toggle('hidden', tab !== 'login');
+            document.getElementById('form-register').classList.toggle('hidden', tab !== 'register');
+        }
+
+        // Auth Handler
+        function handleAuth(e, mode) {
+            e.preventDefault();
+            let username, display, avatar, banner;
+
+            if (mode === 'register') {
+                display = document.getElementById('reg-display').value.trim();
+                username = '@' + document.getElementById('reg-username').value.trim().replace(/^@/, '');
+                avatar = document.getElementById('reg-avatar').value.trim();
+                banner = document.getElementById('reg-banner').value.trim();
+
+                const isAdmin = Object.keys(appState.registeredUsers).length === 0;
+
+                appState.registeredUsers[username] = {
+                    display, username, avatar, banner, isAdmin, isStaff: isAdmin, isBanned: false, banReason: ''
+                };
+            } else {
+                username = document.getElementById('login-username').value.trim();
+                if (!username.startsWith('@')) username = '@' + username;
+
+                if (!appState.registeredUsers[username]) {
+                    appState.registeredUsers[username] = {
+                        display: username.replace('@', ''),
+                        username: username,
+                        avatar: '',
+                        banner: '',
+                        isAdmin: false, isStaff: false, isBanned: false, banReason: ''
+                    };
+                }
+            }
+
+            const user = appState.registeredUsers[username];
+            if (user.isBanned) return showBannedScreen(user.banReason);
+
+            appState.currentUser = user;
+
+            document.getElementById('user-display-name').innerText = user.display;
+            document.getElementById('user-handle').innerText = user.username;
+            document.getElementById('user-avatar-container').innerHTML = getAvatarElement(user);
+
+            document.getElementById('auth-screen').classList.add('opacity-0', 'pointer-events-none');
+            setTimeout(() => {
+                document.getElementById('auth-screen').classList.add('hidden');
+                document.getElementById('main-dashboard').classList.remove('opacity-0');
+            }, 300);
+        }
+
+        // Profile Settings Form Handler
+        function handleSaveSettings(e) {
+            e.preventDefault();
+            if (!appState.currentUser) return;
+
+            appState.currentUser.display = document.getElementById('settings-display').value.trim();
+            appState.currentUser.avatar = document.getElementById('settings-avatar').value.trim();
+            appState.currentUser.banner = document.getElementById('settings-banner').value.trim();
+
+            document.getElementById('user-display-name').innerText = appState.currentUser.display;
+            document.getElementById('user-avatar-container').innerHTML = getAvatarElement(appState.currentUser);
+
+            closeModal('modal-settings');
+        }
+
+        // Context Switcher (DMs vs Servers)
+        function switchContext(context, serverId = null) {
+            appState.currentContext = context;
+            appState.currentServerId = serverId;
+            document.getElementById('nav-dm').className = context === 'dm' ? 'w-10 h-10 rounded-2xl bg-polaris-accent text-white flex items-center justify-center hover:rounded-xl transition-all shadow-md' : 'w-10 h-10 rounded-2xl bg-polaris-card text-polaris-muted flex items-center justify-center hover:rounded-xl hover:text-white transition-all';
+            renderServerList();
+            renderChannelOrDMList();
+        }
+
+        function renderServerList() {
+            const container = document.getElementById('server-list');
+            container.innerHTML = '';
+            appState.servers.forEach(server => {
+                const btn = document.createElement('button');
+                btn.className = `group relative w-10 h-10 rounded-2xl bg-polaris-card border border-polaris-border hover:border-polaris-accent overflow-hidden transition-all ${appState.currentServerId === server.id ? 'ring-2 ring-polaris-accent' : ''}`;
+                btn.onclick = () => switchContext('server', server.id);
+                btn.innerHTML = server.icon ? `<img src="${server.icon}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center font-bold text-xs text-white">${server.name.charAt(0)}</div>`;
+                container.appendChild(btn);
+            });
+        }
+
+        function renderChannelOrDMList() {
+            const title = document.getElementById('sidebar-title');
+            const list = document.getElementById('channel-or-dm-list');
+            const actionBtn = document.getElementById('sidebar-action-btn');
+            list.innerHTML = '';
+
+            if (appState.currentContext === 'dm') {
+                title.innerHTML = `<i data-lucide="users" class="w-4 h-4 text-polaris-accent"></i> Direct Messages`;
+                actionBtn.setAttribute('onclick', 'openNewDMDialog()');
+                if (appState.dms.length === 0) list.innerHTML = `<div class="p-3 text-xs text-polaris-muted italic text-center">No active direct messages.</div>`;
+
+                appState.dms.forEach(dm => {
+                    const item = document.createElement('div');
+                    item.className = "p-2 rounded-xl hover:bg-polaris-border/40 cursor-pointer flex items-center justify-between transition";
+                    item.onclick = () => selectDMConversation(dm);
+                    item.innerHTML = `
+                        <div class="flex items-center space-x-2.5 overflow-hidden">
+                            ${getAvatarElement(dm, "w-7 h-7")}
+                            <div class="truncate">
+                                <div class="text-xs font-semibold text-white flex items-center gap-1">
+                                    <span>${dm.name}</span>
+                                    ${dm.isAdmin ? `<span class="px-1 py-0.2 bg-polaris-accent/20 border border-polaris-accent/40 text-polaris-cyan text-[8px] font-bold rounded">ADMIN</span>` : ''}
+                                </div>
+                                <div class="text-[10px] text-polaris-muted font-mono truncate">${dm.handle}</div>
+                            </div>
+                        </div>
+                    `;
+                    list.appendChild(item);
+                });
+            } else {
+                const server = appState.servers.find(s => s.id === appState.currentServerId);
+                const isOwner = server && appState.currentUser && server.ownerId === appState.currentUser.username;
+                title.innerHTML = `<i data-lucide="hash" class="w-4 h-4 text-polaris-accent"></i> ${server ? server.name : 'Server'}`;
+                actionBtn.setAttribute('onclick', isOwner ? "openModal('modal-create-channel')" : "alert('Only server owners can manage server channels.')");
+
+                const channels = server ? server.channels : ['general'];
+                channels.forEach(ch => {
+                    const item = document.createElement('div');
+                    item.className = `p-2 rounded-xl hover:bg-polaris-border/40 cursor-pointer flex items-center space-x-2 transition ${appState.currentChannelId === ch ? 'bg-polaris-border/60 text-white' : 'text-polaris-muted'}`;
+                    item.onclick = () => { appState.currentChannelId = ch; renderChannelOrDMList(); };
+                    item.innerHTML = `<i data-lucide="hash" class="w-4 h-4 text-polaris-muted"></i><span class="text-xs font-medium">${ch}</span>`;
+                    list.appendChild(item);
+                });
+            }
+            lucide.createIcons();
+        }
+
+        function openNewDMDialog() {
+            const handle = prompt("Enter username (@handle) for direct message:");
+            if (!handle) return;
+            const targetHandle = handle.trim().startsWith('@') ? handle.trim() : '@' + handle.trim();
+            const targetUser = appState.registeredUsers[targetHandle] || { display: targetHandle.replace('@', ''), username: targetHandle, avatar: '', isAdmin: false };
+            if (!appState.dms.some(d => d.handle === targetHandle)) {
+                appState.dms.push({ id: targetHandle, name: targetUser.display, handle: targetUser.username, avatar: targetUser.avatar, isAdmin: targetUser.isAdmin });
+            }
+            renderChannelOrDMList();
+            selectDMConversation(targetUser);
+        }
+
+        function selectDMConversation(dm) {
+            document.getElementById('chat-title').innerText = dm.display || dm.name;
+            document.getElementById('chat-subtitle').innerText = `Direct session with ${dm.username || dm.handle}`;
+            document.getElementById('chat-messages').innerHTML = '';
+        }
+
+        // Voice Recording Simulator
+        function simulateVoiceRecord() {
+            appState.pendingVoiceNote = true;
+            document.getElementById('voice-preview-bar').classList.remove('hidden');
+        }
+
+        function discardVoiceNote() {
+            appState.pendingVoiceNote = false;
+            document.getElementById('voice-preview-bar').classList.add('hidden');
+        }
+
+        function sendVoiceNote() {
+            if (!appState.pendingVoiceNote) return;
+            discardVoiceNote();
+            renderMessageCard({
+                sender: appState.currentUser ? appState.currentUser.display : "User",
+                username: appState.currentUser ? appState.currentUser.username : "@user",
+                avatar: appState.currentUser ? appState.currentUser.avatar : "",
+                banner: appState.currentUser ? appState.currentUser.banner : "",
+                isAdmin: appState.currentUser ? appState.currentUser.isAdmin : false,
+                isVoice: true,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            });
+        }
+
+        function attachImagePrompt() {
+            const url = prompt("Enter image/GIF URL to attach:");
+            if (url) {
+                document.getElementById('message-text-input').value = url;
+            }
+        }
+
+        // Render Message Card
+        function renderMessageCard(msg) {
+            const container = document.getElementById('chat-messages');
+            const card = document.createElement('div');
+            card.className = "flex items-start space-x-3.5 group p-2 rounded-xl hover:bg-polaris-card/40 transition relative animate-fade-in";
+
+            const bannerStyle = msg.banner ? `style="background-image: url('${msg.banner}'); background-size: cover;"` : 'class="bg-gradient-to-r from-polaris-accent to-indigo-900"';
+
+            let bodyContent = `<div class="text-xs text-slate-200 mt-1 leading-relaxed">${msg.text}</div>`;
+
+            if (msg.isVoice) {
+                bodyContent = `
+                    <div class="mt-2 p-3 glass-card rounded-xl max-w-xs border border-polaris-accent/40 space-y-2">
+                        <div class="flex items-center space-x-3">
+                            <button onclick="this.querySelector('i').setAttribute('data-lucide', 'pause')" class="w-8 h-8 rounded-full bg-polaris-accent flex items-center justify-center text-white shrink-0">
+                                <i data-lucide="play" class="w-4 h-4"></i>
+                            </button>
+                            <div class="flex-1 flex items-center space-x-1 h-5">
+                                <div class="w-1 bg-polaris-cyan h-3 animate-equalizer"></div>
+                                <div class="w-1 bg-polaris-cyan h-5 animate-equalizer" style="animation-delay: 0.2s"></div>
+                                <div class="w-1 bg-polaris-cyan h-2 animate-equalizer" style="animation-delay: 0.4s"></div>
+                                <div class="w-1 bg-polaris-cyan h-4 animate-equalizer" style="animation-delay: 0.1s"></div>
+                                <div class="w-1 bg-polaris-cyan h-3 animate-equalizer" style="animation-delay: 0.3s"></div>
+                            </div>
+                            <span class="text-[10px] font-mono text-polaris-muted">0:15</span>
+                        </div>
+                    </div>
+                `;
+            } else if (msg.text && (msg.text.startsWith('http://') || msg.text.startsWith('https://')) && msg.text.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
+                bodyContent = `<img src="${msg.text}" class="mt-2 max-w-sm rounded-xl border border-polaris-border max-h-60 object-cover shadow-lg">`;
+            }
+
+            card.innerHTML = `
+                <div class="relative group/avatar shrink-0 cursor-pointer">
+                    ${getAvatarElement(msg, "w-9 h-9")}
+                    
+                    <div class="absolute left-0 top-11 w-64 glass-panel rounded-xl shadow-2xl overflow-hidden opacity-0 pointer-events-none group-hover/avatar:opacity-100 group-hover/avatar:pointer-events-auto transition-all duration-200 z-30">
+                        <div class="h-16 w-full" ${bannerStyle}></div>
+                        <div class="p-3 relative pt-0">
+                            <div class="-mt-6 mb-2">${getAvatarElement(msg, "w-12 h-12")}</div>
+                            <div class="text-xs font-bold text-white flex items-center justify-between">
+                                <span>${msg.sender}</span>
+                                ${msg.isAdmin ? `<span class="px-1.5 py-0.5 bg-polaris-accent text-white text-[9px] font-bold rounded">ADMIN</span>` : ''}
+                            </div>
+                            <div class="text-[10px] text-polaris-muted font-mono mb-2">${msg.username}</div>
+                            <button onclick="openReportModal('${msg.username}', '${msg.sender}')" class="w-full py-1 bg-polaris-rose/20 border border-polaris-rose/40 text-polaris-rose text-[10px] font-semibold rounded hover:bg-polaris-rose hover:text-white transition">Report User</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex-1 overflow-hidden">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs font-bold text-white">${msg.sender}</span>
+                        ${msg.isAdmin ? `<span class="px-1.5 py-0.2 bg-polaris-accent/20 border border-polaris-accent/40 text-polaris-cyan text-[9px] font-bold rounded">ADMIN</span>` : ''}
+                        <span class="text-[10px] text-polaris-muted font-mono">${msg.time}</span>
+                    </div>
+                    ${bodyContent}
+                </div>
+            `;
+
+            container.appendChild(card);
+            container.scrollTop = container.scrollHeight;
+            lucide.createIcons();
+        }
+
+        function handleSendMessage(e) {
+            e.preventDefault();
+            if (appState.currentUser && appState.currentUser.isBanned) return showBannedScreen(appState.currentUser.banReason);
+
+            const input = document.getElementById('message-text-input');
+            const text = input.value.trim();
+            if (!text) return;
+            input.value = '';
+
+            renderMessageCard({
+                sender: appState.currentUser ? appState.currentUser.display : "User",
+                username: appState.currentUser ? appState.currentUser.username : "@user",
+                avatar: appState.currentUser ? appState.currentUser.avatar : "",
+                banner: appState.currentUser ? appState.currentUser.banner : "",
+                isAdmin: appState.currentUser ? appState.currentUser.isAdmin : false,
+                text: text,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            });
+        }
+
+        // Moderation & Reports
+        function openReportModal(username, display) {
+            document.getElementById('report-target-username').value = username;
+            document.getElementById('report-target-display').innerText = `${display} (${username})`;
+            openModal('modal-report-user');
+        }
+
+        function submitReport(e) {
+            e.preventDefault();
+            appState.reports.push({
+                target: document.getElementById('report-target-username').value,
+                category: document.getElementById('report-category').value,
+                details: document.getElementById('report-details').value,
+                reporter: appState.currentUser ? appState.currentUser.username : '@user',
+                time: new Date().toLocaleTimeString()
+            });
+            renderAdminReportsQueue();
+            closeModal('modal-report-user');
+            alert("Incident reported to admin audit queue.");
+        }
+
+        function renderAdminReportsQueue() {
+            const list = document.getElementById('admin-report-list');
+            if (appState.reports.length === 0) return list.innerHTML = `<div class="text-polaris-muted italic text-[11px]">No active user reports.</div>`;
+            list.innerHTML = '';
+            appState.reports.forEach((rep) => {
+                const item = document.createElement('div');
+                item.className = "p-2 bg-polaris-bg rounded border border-polaris-border space-y-1";
+                item.innerHTML = `
+                    <div class="flex justify-between font-bold text-white"><span>${rep.target}</span><span class="text-polaris-rose">${rep.category}</span></div>
+                    <div class="text-[10px] text-slate-300">${rep.details}</div>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        // Instant Ban Execution
+        function executeInstantBan() {
+            let username = document.getElementById('admin-ban-username').value.trim();
+            const reason = document.getElementById('admin-ban-note').value.trim() || 'Violation of network guidelines.';
+            if (!username) return alert("Enter target username.");
+            if (!username.startsWith('@')) username = '@' + username;
+
+            if (!appState.registeredUsers[username]) appState.registeredUsers[username] = { display: username.replace('@', ''), username, avatar: '', isAdmin: false };
+
+            appState.registeredUsers[username].isBanned = true;
+            appState.registeredUsers[username].banReason = reason;
+
+            if (appState.currentUser && appState.currentUser.username === username) showBannedScreen(reason);
+            alert(`User ${username} banned instantly.`);
+        }
+
+        function showBannedScreen(reason) {
+            closeModal('modal-admin-panel');
+            document.getElementById('ban-reason-text').innerText = reason;
+            document.getElementById('banned-screen').classList.remove('hidden');
+        }
+
+        function submitAppeal(e) {
+            e.preventDefault();
+            appState.appeals.push({ username: document.getElementById('appeal-username').value, reason: document.getElementById('appeal-reason').value, time: new Date().toLocaleTimeString() });
+            renderAdminAppealsQueue();
+            alert("Appeal submitted.");
+        }
+
+        function renderAdminAppealsQueue() {
+            const list = document.getElementById('admin-appeals-list');
+            if (appState.appeals.length === 0) return list.innerHTML = `<div class="text-polaris-muted italic text-[11px]">No pending appeals.</div>`;
+            list.innerHTML = '';
+            appState.appeals.forEach((app) => {
+                const item = document.createElement('div');
+                item.className = "p-2 bg-polaris-bg rounded border border-polaris-border space-y-1";
+                item.innerHTML = `<div class="font-bold text-white">${app.username}</div><div class="text-[10px] text-slate-300">${app.reason}</div>`;
+                list.appendChild(item);
+            });
+        }
+
+        function setUserRole(role) {
+            let username = document.getElementById('admin-role-target').value.trim();
+            if (!username.startsWith('@')) username = '@' + username;
+            if (appState.registeredUsers[username]) {
+                appState.registeredUsers[username].isAdmin = (role === 'admin');
+                alert(`Role updated to ${role}.`);
+            }
+        }
+
+        // Secret Shortcut Engine (Ctrl + E x3)
+        function setupAdminShortcutListener() {
+            window.addEventListener('keydown', (e) => {
+                if (e.ctrlKey && (e.key === 'e' || e.key === 'E')) {
+                    e.preventDefault();
+                    const username = appState.currentUser ? appState.currentUser.username : '';
+                    if (appState.shortcutConfig.disableAll) return;
+                    if (appState.shortcutConfig.disableNonStaff && (!appState.currentUser || !appState.currentUser.isAdmin)) return;
+                    if (appState.shortcutConfig.blacklistedUsers.includes(username)) return;
+
+                    appState.ctrlEPressCount++;
+                    if (appState.ctrlEPressCount >= 3) {
+                        appState.ctrlEPressCount = 0;
+                        openModal('modal-admin-passcode');
+                    }
+                }
+            });
+        }
+
+        function updateShortcutSettings() {
+            appState.shortcutConfig.disableAll = document.getElementById('toggle-disable-shortcut-all').checked;
+            appState.shortcutConfig.disableNonStaff = document.getElementById('toggle-disable-shortcut-nonstaff').checked;
+        }
+
+        function blacklistUserShortcut() {
+            let handle = document.getElementById('blacklist-shortcut-username').value.trim();
+            if (!handle.startsWith('@')) handle = '@' + handle;
+            appState.shortcutConfig.blacklistedUsers.push(handle);
+            alert(`User ${handle} blacklisted.`);
+        }
+
+        function verifyAdminPasscode(e) {
+            e.preventDefault();
+            if (document.getElementById('admin-code-input').value === '1010') {
+                closeModal('modal-admin-passcode');
+                renderAdminReportsQueue();
+                renderAdminAppealsQueue();
+                openModal('modal-admin-panel');
+            } else alert('Invalid Code.');
+        }
+
+        function sendAdminBroadcast() {
+            const msg = document.getElementById('admin-broadcast-text').value;
+            if (!msg) return;
+            document.getElementById('broadcast-message').innerText = msg;
+            document.getElementById('global-broadcast').classList.remove('hidden');
+            closeModal('modal-admin-panel');
+        }
+
+        function handleCreateServer(e) {
+            e.preventDefault();
+            const name = document.getElementById('server-name-input').value;
+            const icon = document.getElementById('server-icon-input').value;
+            appState.servers.push({ id: `server-${Date.now()}`, name, icon, ownerId: appState.currentUser ? appState.currentUser.username : '@user', channels: ['general', 'announcements'] });
+            renderServerList();
+            closeModal('modal-create-server');
+        }
+
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+    </script>
+</body>
+</html>
